@@ -1,11 +1,21 @@
 # impacket SMB extension for MS17-010 exploit.
 # this file contains only valid SMB packet format operation.
+#Modified to run in Python3
+from io import StringIO # Python 3 import
 from impacket import smb, smbconnection
 from impacket.dcerpc.v5 import transport
 from struct import pack
 import os
 import random
-
+import binascii
+import sys
+import argparse
+import gzip
+import os
+import io
+from subprocess import check_output
+import six
+import numpy 
 
 def getNTStatus(self):
 	return (self['ErrorCode'] << 16) | (self['_reserved'] << 8) | self['ErrorClass']
@@ -70,14 +80,27 @@ def _put_trans_data(transCmd, parameters, data, noPad=False):
 	if len(parameters):
 		padLen = 0 if noPad else (4 - offset % 4 ) % 4
 		transCmd['Parameters']['ParameterOffset'] = offset + padLen
-		transData = ('\x00' * padLen) + parameters
+		transdata1 = str.encode(('\x00' * padLen))
+		if isinstance(parameters, str):
+			bparameters = str.encode(parameters)
+			transdata2 = transdata1 + bparameters
+		else:
+			transdata2 = transdata1 + parameters
+
+			
+		transData = transdata2.decode()
 		offset += padLen + len(parameters)
 	
 	if len(data):
 		padLen = 0 if noPad else (4 - offset % 4 ) % 4
 		transCmd['Parameters']['DataOffset'] = offset + padLen
-		transData += ('\x00' * padLen) + data
-	
+		if isinstance(data, str):
+			bytedata = str.encode(data)
+		else:
+			bytedata = data
+		bytetransData = (str.encode('\x00' * padLen))	
+		transData = bytetransData+bytedata
+
 	transCmd['Data'] = transData
 	
 
@@ -225,9 +248,13 @@ class MYSMB(smb.SMB):
 		if self._SignatureEnabled:
 			pkt['Flags2'] |= smb.SMB.FLAGS2_SMB_SECURITY_SIGNATURE
 			self.signSMB(pkt, self._SigningSessionKey, self._SigningChallengeResponse)
-			
-		req = str(pkt)
-		return '\x00'*2 + pack('>H', len(req)) + req  # assume length is <65536
+
+		req1 = str.encode(('\x00'*2))
+		req2 = (pack('>H', len(pkt)))
+		req3 = bytes(req1 + req2)   # assume length is <65536
+		req4 = pkt.__str__()
+		req = req3+req4
+		return req
 
 	def send_raw(self, data):
 		self.get_socket().send(data)
@@ -374,8 +401,13 @@ class MYSMB(smb.SMB):
 			recvPkt = self.recvSMB()
 			if recvPkt['Mid'] != mid:
 				continue
+			print (type(data))
+			print (data)
+			if isinstance(data, str):
+				data = str.encode(data)
+			else:
+				continue		
 			resp = smb.SMBCommand(recvPkt['Data'][0])
 			data += resp['Data'][1:]  # skip padding
 			#print(len(data))
 		return data
-
