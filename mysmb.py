@@ -406,33 +406,44 @@ class MYSMB(smb.SMB):
 
 	def recv_transaction_data(self, mid, minLen):
 		data = ''
+		data = str.encode(data)
+		
 		while len(data) < minLen:
 			recvPkt = self.recvSMB()
 			byte_recvPkt = recvPkt.__str__()
 			RecvPkt = byte_recvPkt.decode('iso-8859-1')
-			mid_recvPkt_str = (str(recvPkt['Mid']))
-			print ("RecvPkt is ", RecvPkt)
-			print ("recvPkt['Mid'] is", recvPkt['Mid'])
-			print ("recvPkt['Data'][0] is", recvPkt['Data'][0])
-			print ("mid is", mid)
-			print ("mid_recvPkt_str is", mid_recvPkt_str)
 
+			print ("RecvPkt is " + RecvPkt)
+			print ("recvPkt['Data']", recvPkt['Data'])
+			print ("recvPkt['Mid']", recvPkt['trans2_mid'])
+			print ("recvPkt['Data'][0] is", str(recvPkt['Data'][0]))
+			print ("mid is", mid)
+			
+			#print ("mid_recvPkt_str is", mid_recvPkt_str)
+			
 			if isinstance(recvPkt['Mid'], int):
-				if recvPkt['Mid'] != mid:
+				if recvPkt['trans2_mid'] != mid:
 					#contunue - removed as stopped working correctly
 					pill="blue" #Do nothing to test for troubleshooting
-
-				if isinstance(data, str):
-					data = str.encode(data)
-
-				else:
-					print ('blue')
+			else:
+				if int(recvPkt['mid']) != mid:
 					continue
-				print ('pink')	
+
 			resp = smb.SMBCommand(recvPkt['Data'][0])
-			print ('gray')
+			
+			conv_resp = resp.__str__()
+			
+			print ("resp", str(conv_resp))
+			
+			str_resp = conv_resp.decode('iso-8859-1')
+			data_resp = resp['Data']
+			
+			print ("data_resp is", data_resp)
+
+			print ("resp is in bytes: ", conv_resp)
+			print ("resp is in text:", str_resp)
+			
 			data += resp['Data'][1:]  # skip padding
 			data = data.decode('iso-8859-1')
-			print (data)
-			print (str(resp['Data']))		
+			print ("data is", data)
 		return data
