@@ -108,7 +108,6 @@ def _put_trans_data(transCmd, parameters, data, noPad=False):
 
 		
 	transCmd['Data'] = transData
-	
 
 origin_NewSMBPacket_addCommand = getattr(smb.NewSMBPacket, "addCommand")
 login_MaxBufferSize = 61440
@@ -120,7 +119,6 @@ def NewSMBPacket_addCommand_hook_login(self, command):
 		command['Parameters']['MaxBufferSize'] = login_MaxBufferSize
 	elif isinstance(command['Parameters'], smb.SMBSessionSetupAndX_Parameters):
 		command['Parameters']['MaxBuffer'] = login_MaxBufferSize
-	
 	# call original one
 	origin_NewSMBPacket_addCommand(self, command)
 
@@ -144,6 +142,10 @@ class MYSMB(smb.SMB):
 		self._last_tid = 0  # last tid from connect_tree()
 		self._last_fid = 0  # last fid from nt_create_andx()
 		self._smbConn = None
+		print ("remote_host is", remote_host)
+		#print ("remote_type is", remote_type)
+		print ("timeout is", timeout)
+
 		smb.SMB.__init__(self, remote_host, remote_host, timeout=timeout)
 
 	def set_pid(self, pid):
@@ -211,7 +213,6 @@ class MYSMB(smb.SMB):
 	def send_echo(self, data):
 		pkt = smb.NewSMBPacket()
 		pkt['Tid'] = self._default_tid
-		
 		transCommand = smb.SMBCommand(smb.SMB.SMB_COM_ECHO)
 		transCommand['Parameters'] = smb.SMBEcho_Parameters()
 		transCommand['Data'] = smb.SMBEcho_Data()
@@ -219,7 +220,6 @@ class MYSMB(smb.SMB):
 		transCommand['Parameters']['EchoCount'] = 1
 		transCommand['Data']['Data'] = data
 		pkt.addCommand(transCommand)
-
 		self.sendSMB(pkt)
 		return self.recvSMB()
 
@@ -401,49 +401,15 @@ class MYSMB(smb.SMB):
 		_put_trans_data(transCmd, param, data, noPad)
 		return self.create_smb_packet(transCmd, mid, pid, tid)
 
-	def send_nt_trans_secondary(self, mid, param='', paramDisplacement=0, data='', dataDisplacement=0, pid=None, tid=None, noPad=False):
+	def send_nt_trans_secondary(self, mid, param='', paramDisplacement=0, data='', dataDisplacement=0, pid=None, tid=None, noPad=False):	
 		self.send_raw(self.create_nt_trans_secondary_packet(mid, param, paramDisplacement, data, dataDisplacement, pid, tid, noPad))
 
 	def recv_transaction_data(self, mid, minLen):
 		data = ''
-		data = str.encode(data)
-		
 		while len(data) < minLen:
 			recvPkt = self.recvSMB()
-			byte_recvPkt = recvPkt.__str__()
-			RecvPkt = byte_recvPkt.decode('iso-8859-1')
-
-			print ("RecvPkt is " + RecvPkt)
-			print ("recvPkt['Data']", recvPkt['Data'])
-			print ("recvPkt['Mid']", recvPkt['trans2_mid'])
-			print ("recvPkt['Data'][0] is", str(recvPkt['Data'][0]))
-			print ("mid is", mid)
-			
-			#print ("mid_recvPkt_str is", mid_recvPkt_str)
-			
-			if isinstance(recvPkt['Mid'], int):
-				if recvPkt['trans2_mid'] != mid:
-					#contunue - removed as stopped working correctly
-					pill="blue" #Do nothing to test for troubleshooting
-			else:
-				if int(recvPkt['mid']) != mid:
-					continue
-
-			resp = smb.SMBCommand(recvPkt['Data'][0])
-			
-			conv_resp = resp.__str__()
-			
-			print ("resp", str(conv_resp))
-			
-			str_resp = conv_resp.decode('iso-8859-1')
-			data_resp = resp['Data']
-			
-			print ("data_resp is", data_resp)
-
-			print ("resp is in bytes: ", conv_resp)
-			print ("resp is in text:", str_resp)
-			
-			data += resp['Data'][1:]  # skip padding
-			data = data.decode('iso-8859-1')
+			recvPkt_conv = recvPkt.__str__()
+			data = recvPkt_conv[1:]  # skip padding
 			print ("data is", data)
+			print ("yellow")
 		return data
